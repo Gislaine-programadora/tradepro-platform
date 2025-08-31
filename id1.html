@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradePro - Plataforma Home Broker Profissional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --dark-bg: #0f172a;
+            --card-bg: #1e293b;
+        }
+        
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: var(--dark-bg);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+        
+        .card-glass {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+        }
+        
+        .chart-container {
+            height: 500px;
+            position: relative;
+        }
+        
+        .price-up {
+            color: #10b981;
+        }
+        
+        .price-down {
+            color: #ef4444;
+        }
+        
+        .order-book {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .order-book::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .order-book::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+        
+        .floating-action {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .pulse-ring {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            min-width: 400px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+        
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            margin: 0 auto;
+        }
+        
+        .transaction-success {
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .transaction-pending {
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .tradingview-widget-container {
+            height: 500px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-900">
+    <!-- Loading Screen -->
+    <div id="loading" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-white text-lg font-semibold">Carregando TradePro...</p>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <div class="text-center mb-6">
+                <div class="bg-blue-600 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-chart-line text-white text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold">Login TradePro</h2>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Email</label>
+                    <input type="email" id="loginEmail" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="seu@email.com">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Senha</label>
+                    <input type="password" id="loginPassword" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="Sua senha">
+                </div>
+                
+                <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold">
+                    Entrar na Plataforma
+                </button>
+                
+                <div class="text-center text-sm text-gray-400">
+                    <p>Não tem conta? <a href="#" class="text-blue-400 hover:underline" onclick="showRegister()">Cadastre-se</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registration Modal -->
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <div class="text-center mb-6">
+                <div class="bg-blue-600 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-user-plus text-white text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold">Criar Conta</h2>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Nome Completo</label>
+                    <input type="text" id="registerName" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-极地2 text-white" placeholder="Seu nome completo">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Email</label>
+                    <input type="email" id="registerEmail" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="seu@email.com">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Senha</label>
+                    <input type="password" id="registerPassword" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="Mínimo 8 caracteres">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold mb-2">CPF</label>
+                    <input type="text" id="registerCpf" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="000.000.000-00">
+                </div>
+                
+                <button onclick="handleRegister()" class="w-full bg-green-600 hover:bg-green-700 py-3 rounded-lg font-semibold">
+                    Criar Conta
+                </button>
+                
+                <div class="text-center text-sm text-gray-400">
+                    <p>Já tem conta? <a href="#" class="text-blue-400 hover:underline" onclick="showLogin()">Faça login</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIX Deposit Modal -->
+    <div id="pixDepositModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Depósito via PIX</h2>
+                <button onclick="closeModal('pixDepositModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <div class="bg-gray-700/30 p-4 rounded-lg">
+                    <h3 class="font-semibold mb-3">QR Code para Pagamento</h3>
+                    <div class="qr-code">
+                        <img src="https://placehold.co/200x200" alt="QR Code PIX com fundo branco e pixels pretos para depósito na plataforma TradePro" />
+                    </div>
+                    <p class="text-center text-sm text-gray-300 mt-3">Escaneie este QR Code com seu app bancário</p>
+                </div>
+                
+                <div class="bg-gray-极地700/30 p-4 rounded-lg">
+                    <h3 class="font-semibold mb-3">Chave PIX</h3>
+                    <div class="bg-gray-600 p-3 rounded break-all text-sm mb-3">
+                        tradepro-pix-893475623894756@tradepro.com.br
+                    </div>
+                    <button onclick="copyToClipboard('tradepro-pix-893475623894756@tradepro.com.br')" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg">
+                        Copiar Chave PIX
+                    </button>
+                </div>
+                
+                <div class="bg-gray-700/30 p-4 rounded-lg">
+                    <h3 class="font-semibold mb-3">Valor Mínimo: R$ 10,00</h3>
+                    <p class="text-sm text-gray-300">Depósitos são processados em até 2 minutos</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIX Withdraw Modal -->
+    <div id="pixWithdrawModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Saque via PIX</h2>
+                <button onclick="closeModal('pixWithdrawModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Chave PIX</label>
+                    <input type="text" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="CPF, telefone, email ou chave aleatória">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold mb-2">Valor do Saque</label>
+                    <input type="number" id="withdrawAmount" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="R$ 0,00" min="10" step="0.01">
+                </div>
+                
+                <div class="bg-gray-700/30 p-3 rounded-lg">
+                    <div class="flex justify-between text-sm">
+                        <span>Saldo Disponível:</span>
+                        <span class="text-green-400">R$ 15.642,78</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span>Taxa:</span>
+                        <span class="text-red-400">R$ 0,00</span>
+                    </div>
+                    <div class="flex justify-between text-sm font-semibold mt-2">
+                        <span>Total a Receber:</span>
+                        <span class="text-green-400">R$ 15.642,78</span>
+                    </div>
+                </div>
+                
+                <button onclick="processWithdraw()" class="w-full bg-green-600 hover:bg-green-700 py-3 rounded-lg font-semibold">
+                    Confirmar Saque
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Confirmation Modal -->
+    <div id="orderModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold" id="orderTitle">Confirmar Ordem</h2>
+                <button onclick="closeModal('orderModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-700/30 p-3 rounded-lg">
+                        <span class="text-sm text-gray-300">Ativo</span>
+                        <p class="font-semibold" id="orderAsset">BTC/USD</p>
+                    </div>
+                    <div class="bg-gray-700/30 p-3 rounded-lg">
+                        <span class="text-sm text-gray-300">Tipo</span>
+                        <p class="font-semibold" id="orderType">COMPRA</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-700/30 p-3 rounded-lg">
+                        <span class="text-sm text-gray-300">Quantidade</span>
+                        <p class="font-semibold" id="orderQuantity">0.5</极地p>
+                    </div>
+                    <div class="bg-gray-700/30 p-3 rounded-lg">
+                        <span class="text-sm text-gray-300">Preço</span>
+                        <p class="font-semibold" id="orderPrice">$42,100.00</p>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-700/30 p-3 rounded-lg">
+                    <span class="text-sm text-gray-300">Total</span>
+                    <p class="font-semibold text-xl" id="orderTotal">$21,050.00</p>
+                </div>
+                
+                <button onclick="confirmOrder()" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold">
+                    Confirmar Ordem
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wallet Modal -->
+    <div id="walletModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Minha Carteira</h2>
+                <button onclick="closeModal('walletModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-gray-700/30 p-4 rounded-lg text-center">
+                        <div class="w-12 h-12 bg-blue-500 rounded-full mx-auto mb-3 flex items-center justify-center">
+                            <i class="fab fa-bitcoin text-white text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold">Bitcoin</h3>
+                        <p class="text-green-400">0.125 BTC</p>
+                        <p class="text-gray-400 text-sm">≈ $5,295.75</p>
+                    </div>
+                    
+                    <div class="bg-gray-700/30 p-4 rounded-lg text-center">
+                        <div class="w-12 h-12 bg-purple-500 rounded-full mx-auto mb-3 flex items-center justify-center">
+                            <i class="fab fa-ethereum text-white text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold">Ethereum</h3>
+                        <p class="text-green-400">3.45 ETH</p>
+                        <p class="text-gray-400 text-sm">≈ $8,456.25</p>
+                    </div>
+                    
+                    <div class="bg-gray-700/30 p-4 rounded-lg text-center">
+                        <div class="w-12 h-12 bg-yellow-500 rounded-full mx-auto mb-3 flex items-center justify-center">
+                            <i class="fas fa-dollar-sign text-white text-xl"></i>
+                        </div>
+                        <h3 class="font-semibold">Real</h3>
+                        <p class="text-green-400">R$ 15,642.78</p>
+                        <p class="text-gray-400 text-sm">Saldo Disponível</p>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-700/30 p-4 rounded-lg">
+                    <h3 class="font-semibold mb-3">Endereços para Depósito</h3>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold mb-2">Bitcoin (BTC)</label>
+                        <div class="bg-gray-600 p-3 rounded text-xs break-all mb-2">
+                            bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh
+                        </div>
+                        <button onclick="copyToClipboard('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')" class="w-full bg-gray-600 hover:bg-gray-700 py-2 rounded text-sm">
+                            Copiar Endereço BTC
+                        </button>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold mb-2">Ethereum (ETH)</label>
+                        <div class="bg-gray-600 p-3 rounded text-xs break-all mb-2">
+                            0x742d35Cc6634C0532925a3b844Bc454e4438f44e
+                        </div>
+                        <button onclick="copyToClipboard('0x742d35Cc6634C0532925a3b844Bc454e4438f44e')" class="w-full bg-gray-600 hover:bg-gray-700 py-2 rounded text-sm">
+                            Copiar Endereço ETH
+                        </button>
+                    </div>
+                </div>
+                
+                <button onclick="closeModal('walletModal')" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-semibold">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Profile Modal -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Meu Perfil</h2>
+                <button onclick="closeModal('profileModal')" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <div class="text-center">
+                    <div class="w-24 h-24 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <i class="fas fa-user text-white text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold" id="profileName">João Silva</h3>
+                    <p class="text-gray-400" id="profileEmail">joao@email.com</p>
+                </div>
+                
+                <div class="bg-gray-700/30 p-4 rounded-lg">
+                    <h3 class="font-semibold mb-3">Informações Pessoais</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">CPF:</span>
+                            <span>123.456.789-00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Telefone:</span>
+                            <span>+55 (11) 99999-9999</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Membro desde:</span>
+                            <span>01/01/2024</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-700/30 p-4 rounded-lg">
+                    <h3 class="font-semibold mb-3">Status da Conta</h3>
+                    <div class="flex items-center justify-between">
+                        <span>Verificação:</span>
+                        <span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm">Verificado</span>
+                    </div>
+                </div>
+                
+                <button onclick="handleLogout()" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-lg font-semibold">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Sair da Conta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden">
+        <!-- Header -->
+        <header class="bg-gray-800 border-b border-gray-700">
+            <div class="container mx-auto px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-blue-600 p-2 rounded-lg">
+                            <i class="fas fa-chart-line text-white text-xl"></i>
+                        </div>
+                        <h1 class="text-2xl font-bold text-white">TradePro</h1>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="hidden md:flex items-center space-x-2">
+                            <span class="text-gray-300">BTC/USD:</span>
+                            <span class="text-green-400 font-semibold">$42,367.89</span>
+                            <span class="text-green-400 text-sm">+2.34%</span>
+                        </div>
+                        <div class="bg-green-500/20 px-3 py-1 rounded-full">
+                            <span class="text-green-400 font-semibold">R$ 15,642.78</span>
+                        </div>
+                        <button onclick="openModal('profileModal')" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-white font-semibold">
+                            <i class="fas fa-user mr-2"></i>Minha Conta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-6">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Sidebar -->
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- Asset Selection -->
+                    <div class="card-glass p-6">
+                        <h2 class="text-xl font-semibold mb-4">Ativos</h2>
+                        <div class="space-y-2">
+                            <div class="asset-item flex items-center justify-between p-3 rounded-lg bg-gray-700/50 hover:bg-gray-700 cursor-pointer transition-colors" data-asset="BTCUSD">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <i class="fab fa-bitcoin text-white"></i>
+                                    </div>
+                                    <span>BTC/USD</span>
+                                </div>
+                                <span class="text-green-400">+2.34%</span>
+                            </div>
+                            <div class="asset-item flex items-center justify-between p-3 rounded-lg bg-gray-700/50 hover:bg-gray-700 cursor-pointer transition-colors" data-asset="ETHUSD">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                                        <i class="fab fa-ethereum text-white"></i>
+                                    </div>
+                                    <span>ETH/USD</span>
+                                </div>
+                                <span class="text-green-400">+1.87%</span>
+                            </div>
+                            <div class="asset-item flex items-center justify-between p-3 rounded-lg bg-gray-700/50 hover:bg-gray-700 cursor-pointer transition-colors" data-asset="ADAUSD">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-coins text-white"></i>
+                                    </div>
+                                    <span>ADA/USD</span>
+                                </div>
+                                <span class="text-red-400">-0.45%</span>
+                            </div>
+                            <div class="asset-item flex items-center justify-between p-3 rounded-lg bg-gray-700/50 hover:bg-gray-700 cursor-pointer transition-colors" data-asset="SOLUSD">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-fire text-white"></i>
+                                    </div>
+                                    <span>SOL/USD</span>
+                                </div>
+                                <span class="text-green-400">+5.21%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Book -->
+                    <div class="card-glass p-6">
+                        <h2 class="text-xl font-semibold mb-4">Livro de Ofertas</h2>
+                        <div class="order-book">
+                            <div class="space-y-1">
+                                <!-- Bids -->
+                                <div class="text-green-400 text-sm">COMPRAS</div>
+                                <div class="flex justify-between text-xs">
+                                    <span>42,360.50</span>
+                                    <span>2.34 BTC</span>
+                                </div>
+                                <div class="flex justify-between text-xs">
+                                    <span>42,358.75</span>
+                                    <span>1.87 BTC</span>
+                                </div>
+                                <div class="flex justify-between text-xs">
+                                    <span>42,355.20</span>
+                                    <span>0.92 BTC</span>
+                                </div>
+                                
+                                <!-- Asks -->
+                                <div class="text-red-400 text-sm mt-4">VENDAS</div>
+                                <div class="flex justify-between text-xs">
+                                    <span>42,370.25</span>
+                                    <span>3.21 BTC</span>
+                                </div>
+                                <div class="flex justify-between text-xs">
+                                    <span>42,372.80</span>
+                                    <span>2.15 BTC</span>
+                                </div>
+                                <div class="flex justify-between text-xs">
+                                    <span>42,375.40</span>
+                                    <span>1.78 BTC</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="card-glass p-6">
+                        <h2 class="text-xl font-semibold mb-4">Ações Rápidas</h2>
+                        <div class="space-y-2">
+                            <button onclick="openModal('pixDepositModal')" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-lg font-semibold">
+                                <i class="fas fa-arrow-down mr-2"></i>Depositar
+                            </button>
+                            <button onclick="openModal('pixWithdrawModal')" class="w-full bg-purple-600 hover:bg-purple-700 py-2 rounded-lg font-semibold">
+                                <i class="fas fa-arrow-up mr-2"></i>Sacar
+                            </button>
+                            <button onclick="openModal('walletModal')" class="w-full bg-gray-600 hover:bg-gray-700 py-2 rounded-lg font-semibold">
+                                <i class="fas fa-wallet mr-2"></i>Minha Carteira
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Chart Area -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Chart Container -->
+                    <div class="card-glass p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-semibold">BTC/USD - Bitcoin</h2>
+                            <div class="flex space-x-2">
+                                <span class="text-green-400 text-xl font-bold">$42,367.89</span>
+                                <span class="text-green-400">+2.34%</span>
+                            </div>
+                        </div>
+                        <!-- TradingView Widget -->
+                        <div class="tradingview-widget-container">
+                            <div id="tradingview-chart" style="height: 500px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Trading Controls -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Buy/Sell Panel -->
+                        <div class="card-glass p-6">
+                            <h3 class="text-lg font-semibold mb-4">Operações</h3>
+                            <div class="space-y-4">
+                                <div class="grid grid-cols-2 gap-2 mb-4">
+                                    <button id="buyBtn" class="bg-green-600 hover:bg-green-700 py-2 rounded-lg font-semibold">
+                                        COMPRAR
+                                    </button>
+                                    <button id="sellBtn" class="bg-red-600 hover:bg-red-700 py-2 rounded-lg font-semibold">
+                                        VENDER
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <label class="text-sm text-gray-300">Quantidade</label>
+                                    <input type="number" id="quantityInput" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="0.00" step="0.01" value="0.5" onchange="calculateTotal()" onkeyup="calculateTotal()">
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <label class="text-sm text-gray-300">Preço (USD)</label>
+                                    <input type="number" id="priceInput" class="w-full bg-gray-700 border border-gray-极地600 rounded-lg px-3 py-2 text-white" value="42367.89" step="0.01" onchange="calculateTotal()" onkeyup="calculateTotal()">
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <label class="text-sm text-gray-300">Tipo de Ordem</label>
+                                    <select id="orderTypeSelect" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white">
+                                        <option>Market</option>
+                                        <option>Limit</option>
+                                        <option>Stop</option>
+                                        <option>Stop Limit</option>
+                                    </select>
+                                </div>
+                                
+                                <button id="confirmOrderBtn" class="w-full gradient-bg hover:opacity-90 py-3 rounded-lg font-semibold text-white">
+                                    Confirmar Ordem
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Wallet & Portfolio -->
+                        <div class="card-glass p-6">
+                            <h3 class="text-lg font-semibold mb-4">Carteira & Portfolio</h3>
+                            <div class="space-y-4">
+                                <div class="bg-gray-700/50 p-4 rounded-lg">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="text-gray-300">Saldo Disponível</span>
+                                        <span class="text-green-400 font-semibold">R$ 15,642.78</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-gray-300">Saldo Investido</span>
+                                        <span class="text-blue-400 font-semibold">R$ 8,345.12</span>
+                                    </div>
+                                    <div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-600">
+                                        <span class="text-gray-300">Patrimônio Total</span>
+                                        <span class="text-green-400 font-semibold text-lg">R$ 23,987.90</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-gray-700/50 p-4 rounded-lg">
+                                    <h4 class="font-semibold mb-3">Distribuição de Ativos</h4>
+                                    <div class="space-y-2">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm">BTC</span>
+                                            <div class="w-24 bg-gray-600 rounded-full h-2">
+                                                <div class="bg-blue-500 h-2 rounded-full" style="width: 45%"></div>
+                                            </div>
+                                            <span class="text-sm">45%</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm">ETH</span>
+                                            <div class="w-24 bg-gray-600 rounded-full h-2">
+                                                <div class="bg-purple-500 h-2 rounded-full" style="width: 35%"></div>
+                                            </div>
+                                            <span class="text-sm">35%</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm">Outros</span>
+                                            <div class="w-24 bg-gray-600 rounded-full h-2">
+                                                <div class="bg-yellow-500 h-2 rounded-full" style="width: 20%"></div>
+                                            </div>
+                                            <span class="text-sm">20%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar -->
+                <div class="lg:col-span-1 space-y-6">
+                    <!-- Open Orders -->
+                    <div class="card-glass p-6">
+                        <h2 class="text-xl font-semibold mb-4">Ordens Abertas</h2>
+                        <div class="space-y-2" id="openOrdersList">
+                            <div class="p-3 rounded-lg bg-gray-700/50">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm">BTC Buy</span>
+                                    <span class="text-green-400 text-sm">$42,100.00</span>
+                                </div>
+                                <div class="flex justify-between items-center text-xs text-gray-400">
+                                    <span>0.5 BTC</span>
+                                    <span>Executando...</span>
+                                </div>
+                                <button onclick="closeOrder(1)" class="w-full mt-2 bg-red-600 hover:bg-red-700 py-1 rounded text-xs">
+                                    Cancelar
+                                </button>
+                            </div>
+                            <div class="p-3 rounded-lg bg-gray-700/50">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm">ETH Sell</span>
+                                    <span class="text-red-400 text-sm">$2,450.00</span>
+                                </div>
+                                <div class="flex justify-between items-center text-xs text-gray-400">
+                                    <span>2.0 ETH</span>
+                                    <span>Pendente</span>
+                                </div>
+                                <button onclick="closeOrder(2)" class="w-full mt-2 bg-red-600 hover:bg-red-700 py-1 rounded text-xs">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Market Overview -->
+                    <div class="card-glass p-6">
+                        <h2 class="text-xl font-semibold mb-4">Visão do Mercado</h2>
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center p-2 hover:bg-gray-700/50 rounded-lg cursor-pointer" data-asset="BTCUSD">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-6 h-6 bg-blue-500 rounded-full"></div>
+                                    <span class="text-sm">BTC/USD</span>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-green-400 text-sm">$42,367.89</div>
+                                    <div class="text-green-400 text-xs">+2.34%</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center p-2 hover:bg-gray-700/50 rounded-lg cursor-pointer" data-asset="ETHUSD">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-6 h-6 bg-purple-500 rounded-full"></div>
+                                    <span class="text-sm">ETH/USD</span>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-green-400 text-sm">$2,456.78</div>
+                                    <div class="text-green-400 text-xs">+1.87%</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center p-2 hover:bg-gray-700/50 rounded-lg cursor-pointer" data-asset="ADAUSD">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-6 h-6 bg-yellow-500 rounded-full"></div>
+                                    <span class="text-sm">ADA/USD</span>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-red-400 text-sm">$0.4567</div>
+                                    <div class="text-red-400 text-xs">-0.45%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- News & Updates -->
+                    <div class="card-glass p-6">
+                        <h2 class="text-xl font-semibold mb-4">Notícias</h2>
+                        <div class="space-y-3">
+                            <div class="p-3 bg-gray-700/30 rounded-lg">
+                                <h4 class="font-semibold text-sm mb-1">Bitcoin atinge nova máxima</h4>
+                                <p class="text-xs text-gray-400">BTC supera $42k com alta de instituições...</p>
+                            </div>
+                            <div class="p-3 bg-gray-700/30 rounded-lg">
+                                <h4 class="font-semibold text-sm mb-1">Novo ETF aprovado</h4>
+                                <p class="text-xs text-gray-400">SEC aprova novo fundo de criptomoedas...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 border-t border-gray-700 mt-12">
+            <div class="container mx-auto px-4 py-6">
+                <div class="text-center text-gray-400 text-sm">
+                    <p>© 2024 TradePro - Plataforma Home Broker Profissional</p>
+                    <p class="mt-2">Os investimentos envolvem riscos. Valorize seu patrimônio.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Floating Action Button -->
+    <div class="fixed bottom-6 right-6">
+        <button class="floating-action w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-blue-700 transition-colors">
+            <i class="fas fa-comment text-xl"></i>
+        </button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
